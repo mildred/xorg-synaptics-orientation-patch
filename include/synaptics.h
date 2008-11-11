@@ -134,6 +134,7 @@ typedef struct _SynapticsSHM
     double press_motion_max_factor; 	    /* factor applied on speed when finger pressure is at minimum */
     Bool grab_event_device;		    /* grab event device for exclusive use? */
     int orientation;			    /* orientation of the trackpad */
+    Bool dont_report_size;		    /* Don't report the size of the trackpad to Xorg */
 } SynapticsSHM;
 
 /*

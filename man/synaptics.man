@@ -394,6 +394,24 @@ This may be useful in combinaison with the orientation option of the XRandR
 extension. You may notice that the values used are the same to the values
 used by XRandR.
 .
+Along with this option, you might be interested to enable the DontReportSize
+option. Read its documentation to know why.
+.
+.TP
+.BI "Option \*qDontReportSize\*q \*q" boolean \*q
+This option prevent the synaptics driver from reporting the size of the trackpad
+to Xorg. Xorg can use this information to amplify the movements in one
+direction. For example, if your trackpad is wider than higher, Xorg will speed
+up your vertical movements. For example, moving the mouse cursor every two
+pixels when synaptics told Xorg that there was a movement on one unit along the
+y axis.
+.
+This is particularly useful with the Orientation option which effectively swaps
+the axis inside the synaptics driver. At that time, Xorg no longer have relevant
+information about the size of the x and y axis and might amplifying the
+movements of the wrong axis. Causing an unusable trackpad, over sensitive
+horizontally and very slow vertically for example.
+.
 .
 .LP
 The LeftEdge, RightEdge, TopEdge and BottomEdge parameters are used to

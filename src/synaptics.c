@@ -476,6 +476,7 @@ static void set_default_parameters(LocalDevicePtr local)
     pars->press_motion_min_z = xf86SetIntOption(opts, "PressureMotionMinZ", pressureMotionMinZ);
     pars->press_motion_max_z = xf86SetIntOption(opts, "PressureMotionMaxZ", pressureMotionMaxZ);
     pars->orientation        = xf86SetIntOption(opts, "Orientation", 0);
+    pars->dont_report_size   = xf86SetBoolOption(opts, "DontReportSize", FALSE);
 
     pars->min_speed = synSetFloatOption(opts, "MinSpeed", 0.4);
     pars->max_speed = synSetFloatOption(opts, "MaxSpeed", 0.7);
@@ -775,13 +776,13 @@ DeviceInit(DeviceIntPtr dev)
 #endif
 			    );
     /* X valuator */
-    if (priv->minx < priv->maxx)
+    if (priv->minx < priv->maxx && priv->synpara->dont_report_size == FALSE)
 	xf86InitValuatorAxisStruct(dev, 0, priv->minx, priv->maxx, 1, 0, 1);
     else
 	xf86InitValuatorAxisStruct(dev, 0, 0, -1, 1, 0, 1);
     xf86InitValuatorDefaults(dev, 0);
     /* Y valuator */
-    if (priv->miny < priv->maxy)
+    if (priv->miny < priv->maxy && priv->synpara->dont_report_size == FALSE)
 	xf86InitValuatorAxisStruct(dev, 1, priv->miny, priv->maxy, 1, 0, 1);
     else
 	xf86InitValuatorAxisStruct(dev, 1, 0, -1, 1, 0, 1);
