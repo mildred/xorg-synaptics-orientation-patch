@@ -135,6 +135,8 @@ typedef struct _SynapticsSHM
     Bool grab_event_device;		    /* grab event device for exclusive use? */
     int orientation;			    /* orientation of the trackpad */
     Bool dont_report_size;		    /* Don't report the size of the trackpad to Xorg */
+    double horiz_speed;			    /* Horizontal speed for mouse movements */
+    double vert_speed;			    /* Vertical speed for mouse movements */
 } SynapticsSHM;
 
 /*

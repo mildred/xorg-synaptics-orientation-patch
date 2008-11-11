@@ -125,6 +125,8 @@ static struct Parameter params[] = {
     DEFINE_PAR("GrabEventDevice",      grab_event_device,       PT_BOOL,   0, 1),
     DEFINE_PAR("Orientation",          orientation,             PT_INT,    0, 3),
     DEFINE_PAR("DontReportSize",       dont_report_size,        PT_BOOL,   0, 1),
+    DEFINE_PAR("HorizSpeed",           horiz_speed,             PT_DOUBLE, 0, 10),
+    DEFINE_PAR("VertSpeed",            vert_speed,              PT_DOUBLE, 0, 10),
     { NULL, 0, 0, 0, 0 }
 };
 

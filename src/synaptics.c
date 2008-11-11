@@ -486,6 +486,8 @@ static void set_default_parameters(LocalDevicePtr local)
     pars->coasting_speed = synSetFloatOption(opts, "CoastingSpeed", 0.0);
     pars->press_motion_min_factor = synSetFloatOption(opts, "PressureMotionMinFactor", 1.0);
     pars->press_motion_max_factor = synSetFloatOption(opts, "PressureMotionMaxFactor", 1.0);
+    pars->horiz_speed = synSetFloatOption(opts, "HorizSpeed", 1.0);
+    pars->vert_speed = synSetFloatOption(opts, "VertSpeed", 1.0);
     pars->grab_event_device = xf86SetBoolOption(opts, "GrabEventDevice", TRUE);
 
     /* Warn about (and fix) incorrectly configured TopEdge/BottomEdge parameters */
@@ -1489,16 +1491,18 @@ ComputeDeltas(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 	    double dtime = (hw->millis - HIST(0).millis) / 1000.0;
 
 	    if (priv->moving_state == MS_TRACKSTICK) {
-		dx = (hw->x - priv->trackstick_neutral_x);
-		dy = (hw->y - priv->trackstick_neutral_y);
+		dx = (hw->x - priv->trackstick_neutral_x) * para->horiz_speed;
+		dy = (hw->y - priv->trackstick_neutral_y) * para->vert_speed;
 
 		HandleOrientation_double(para->orientation, &dx, &dy);
 
 		dx = dx * dtime * para->trackstick_speed;
 		dy = dy * dtime * para->trackstick_speed;
 	    } else if (moving_state == MS_TOUCHPAD_RELATIVE) {
-		dx = estimate_delta(hw->x, HIST(0).x, HIST(1).x, HIST(2).x);
-		dy = estimate_delta(hw->y, HIST(0).y, HIST(1).y, HIST(2).y);
+		dx = estimate_delta(hw->x, HIST(0).x, HIST(1).x, HIST(2).x)
+		   * para->horiz_speed;
+		dy = estimate_delta(hw->y, HIST(0).y, HIST(1).y, HIST(2).y)
+		   * para->vert_speed;
 
 		HandleOrientation_double(para->orientation, &dx, &dy);
 

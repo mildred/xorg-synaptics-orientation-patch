@@ -412,6 +412,20 @@ information about the size of the x and y axis and might amplifying the
 movements of the wrong axis. Causing an unusable trackpad, over sensitive
 horizontally and very slow vertically for example.
 .
+.TP
+.BI "Option \*qVertSpeed\*q \*q" float \*q
+Changes the vertical speed. This is a number multiplied by the input given by
+the trackpad. So a value above 1 speed up the vertical axis, a value below 1
+slows down the vertical movements.
+.
+This option isn't affected by the orientation, so when the screen is rotated
+using XRandR, the movements you have with your oriented trackpad will be similar
+to those you have with a non oriented trackpad and a non rotated screen.
+.
+.TP
+.BI "Option \*qHorizSpeed\*q \*q" float \*q
+Changes the horizontal speed similarly to VertSpeed.
+.
 .
 .LP
 The LeftEdge, RightEdge, TopEdge and BottomEdge parameters are used to
