@@ -1520,7 +1520,7 @@ ComputeDeltas(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 		    } else {
 			edge_speed = minSpd + (hw->z - minZ) * (maxSpd - minSpd) / (maxZ - minZ);
 		    }
-		    if (!priv->synpara->circular_pad) {
+		    if (!para->circular_pad) {
 			/* on rectangular pad */
 			if (edge & RIGHT_EDGE) {
 			    x_edge_speed = edge_speed;
@@ -2040,6 +2040,11 @@ HandleState(LocalDevicePtr local, struct SynapticsHwState *hw)
     /* Two finger emulation */
     if (hw->z >= para->emulate_twofinger_z && hw->numFingers == 1) {
 	hw->numFingers = 2;
+    }
+
+    /* Fingers emulate other buttons */
+    if(hw->left && hw->numFingers >= 1){
+        HandleClickWithFingers(para, hw);
     }
 
     /* Up/Down button scrolling or middle/double click */
