@@ -475,6 +475,7 @@ static void set_default_parameters(LocalDevicePtr local)
     pars->single_tap_timeout = xf86SetIntOption(opts, "SingleTapTimeout", 180);
     pars->press_motion_min_z = xf86SetIntOption(opts, "PressureMotionMinZ", pressureMotionMinZ);
     pars->press_motion_max_z = xf86SetIntOption(opts, "PressureMotionMaxZ", pressureMotionMaxZ);
+    pars->orientation        = xf86SetIntOption(opts, "Orientation", 0);
 
     pars->min_speed = synSetFloatOption(opts, "MinSpeed", 0.4);
     pars->max_speed = synSetFloatOption(opts, "MaxSpeed", 0.7);
@@ -1397,6 +1398,54 @@ estimate_delta(double x0, double x1, double x2, double x3)
     return x0 * 0.3 + x1 * 0.1 - x2 * 0.1 - x3 * 0.3;
 }
 
+static void
+HandleOrientation_double(int orientation, double *dx, double *dy) {
+    double tmp;
+    switch(orientation) {
+	default:
+	case 0:
+	    break;
+	case 1: /* left */
+	    tmp =  *dx;
+	    *dx = -*dy;
+	    *dy =  tmp;
+	    break;
+	case 2: /* inverted */
+	    *dx = -*dx;
+	    *dy = -*dy;
+	    break;
+	case 3: /* right */
+	    tmp =  *dx;
+	    *dx =  *dy;
+	    *dy = -tmp;
+	    break;
+    }
+}
+
+static void
+HandleOrientation_int(int orientation, int *dx, int *dy) {
+    int tmp;
+    switch(orientation) {
+	default:
+	case 0:
+	    break;
+	case 1: /* left */
+	    tmp =  *dx;
+	    *dx = -*dy;
+	    *dy =  tmp;
+	    break;
+	case 2: /* inverted */
+	    *dx = -*dx;
+	    *dy = -*dy;
+	    break;
+	case 3: /* right */
+	    tmp =  *dx;
+	    *dx =  *dy;
+	    *dy = -tmp;
+	    break;
+    }
+}
+
 static int
 ComputeDeltas(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 	      edge_type edge, int *dxP, int *dyP)
@@ -1442,11 +1491,15 @@ ComputeDeltas(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 		dx = (hw->x - priv->trackstick_neutral_x);
 		dy = (hw->y - priv->trackstick_neutral_y);
 
+		HandleOrientation_double(para->orientation, &dx, &dy);
+
 		dx = dx * dtime * para->trackstick_speed;
 		dy = dy * dtime * para->trackstick_speed;
 	    } else if (moving_state == MS_TOUCHPAD_RELATIVE) {
 		dx = estimate_delta(hw->x, HIST(0).x, HIST(1).x, HIST(2).x);
 		dy = estimate_delta(hw->y, HIST(0).y, HIST(1).y, HIST(2).y);
+
+		HandleOrientation_double(para->orientation, &dx, &dy);
 
 		if ((priv->tap_state == TS_DRAG) || para->edge_motion_use_always) {
 		    int minZ = para->edge_motion_min_z;
@@ -1481,6 +1534,9 @@ ComputeDeltas(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 			relative_coords(priv, hw->x, hw->y, &relX, &relY);
 			x_edge_speed = (int)(edge_speed * relX);
 			y_edge_speed = (int)(edge_speed * relY);
+
+			HandleOrientation_int(para->orientation,
+			    &x_edge_speed, &y_edge_speed);
 		    }
 		}
 	    }
@@ -1544,7 +1600,7 @@ struct ScrollData {
 };
 
 static void
-start_coasting(SynapticsPrivate *priv, struct SynapticsHwState *hw, edge_type edge,
+start_coasting(SynapticsPrivate *priv, int x, int y, edge_type edge,
 	       Bool vertical)
 {
     SynapticsSHM *para = priv->synpara;
@@ -1561,7 +1617,7 @@ start_coasting(SynapticsPrivate *priv, struct SynapticsHwState *hw, edge_type ed
 		double scrolls_per_sec = dy / pkt_time / sdelta;
 		if (fabs(scrolls_per_sec) >= para->coasting_speed) {
 		    priv->autoscroll_yspd = scrolls_per_sec;
-		    priv->autoscroll_y = (hw->y - priv->scroll_y) / (double)sdelta;
+		    priv->autoscroll_y = (y - priv->scroll_y) / (double)sdelta;
 		}
 	    }
 	} else {
@@ -1571,7 +1627,7 @@ start_coasting(SynapticsPrivate *priv, struct SynapticsHwState *hw, edge_type ed
 		double scrolls_per_sec = dx / pkt_time / sdelta;
 		if (fabs(scrolls_per_sec) >= para->coasting_speed) {
 		    priv->autoscroll_xspd = scrolls_per_sec;
-		    priv->autoscroll_x = (hw->x - priv->scroll_x) / (double)sdelta;
+		    priv->autoscroll_x = (x - priv->scroll_x) / (double)sdelta;
 		}
 	    }
 	}
@@ -1593,6 +1649,9 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 {
     SynapticsSHM *para = priv->synpara;
     int delay = 1000000000;
+    int oriented_x = hw->x, oriented_y = hw->y;
+
+    HandleOrientation_int(para->orientation, &oriented_x, &oriented_y);
 
     sd->left = sd->right = sd->up = sd->down = 0;
 
@@ -1633,14 +1692,14 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 		    (para->scroll_twofinger_vert) && (para->scroll_dist_vert != 0)) {
 		    priv->vert_scroll_twofinger_on = TRUE;
 		    priv->vert_scroll_edge_on = FALSE;
-		    priv->scroll_y = hw->y;
+		    priv->scroll_y = oriented_y;
 		    DBG(7, ErrorF("vert two-finger scroll detected\n"));
 		}
 		if (!priv->horiz_scroll_twofinger_on &&
 		    (para->scroll_twofinger_horiz) && (para->scroll_dist_horiz != 0)) {
 		    priv->horiz_scroll_twofinger_on = TRUE;
 		    priv->horiz_scroll_edge_on = FALSE;
-		    priv->scroll_x = hw->x;
+		    priv->scroll_x = oriented_x;
 		    DBG(7, ErrorF("horiz two-finger scroll detected\n"));
 		}
 	    }
@@ -1650,13 +1709,13 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 		if ((para->scroll_edge_vert) && (para->scroll_dist_vert != 0) &&
 		    (edge & RIGHT_EDGE)) {
 		    priv->vert_scroll_edge_on = TRUE;
-		    priv->scroll_y = hw->y;
+		    priv->scroll_y = oriented_y;
 		    DBG(7, ErrorF("vert edge scroll detected on right edge\n"));
 		}
 		if ((para->scroll_edge_horiz) && (para->scroll_dist_horiz != 0) &&
 		    (edge & BOTTOM_EDGE)) {
 		    priv->horiz_scroll_edge_on = TRUE;
-		    priv->scroll_x = hw->x;
+		    priv->scroll_x = oriented_x;
 		    DBG(7, ErrorF("horiz edge scroll detected on bottom edge\n"));
 		}
 	    }
@@ -1706,7 +1765,7 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 	if ((oldv || oldh) && !para->scroll_edge_corner &&
 	    !(priv->circ_scroll_on || priv->vert_scroll_edge_on ||
 	      priv->horiz_scroll_edge_on)) {
-	    start_coasting(priv, hw, edge, oldv);
+	    start_coasting(priv, oriented_x, oriented_y, edge, oldv);
 	}
     }
 
@@ -1721,7 +1780,7 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 		 * we're in the corner, but we were moving so slowly when we
 		 * got here that we didn't actually start coasting. */
 		DBG(7, ErrorF("corner edge scroll on\n"));
-		start_coasting(priv, hw, edge, TRUE);
+		start_coasting(priv, oriented_x, oriented_y, edge, TRUE);
 	    }
 	} else if (para->circular_scrolling) {
 	    priv->vert_scroll_edge_on = FALSE;
@@ -1740,7 +1799,7 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 		 * we're in the corner, but we were moving so slowly when we
 		 * got here that we didn't actually start coasting. */
 		DBG(7, ErrorF("corner edge scroll on\n"));
-		start_coasting(priv, hw, edge, FALSE);
+		start_coasting(priv, oriented_x, oriented_y, edge, FALSE);
 	    }
 	} else if (para->circular_scrolling) {
 	    priv->horiz_scroll_edge_on = FALSE;
@@ -1761,11 +1820,11 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 	/* + = down, - = up */
 	int delta = para->scroll_dist_vert;
 	if (delta > 0) {
-	    while (hw->y - priv->scroll_y > delta) {
+	    while (oriented_y - priv->scroll_y > delta) {
 		sd->down++;
 		priv->scroll_y += delta;
 	    }
-	    while (hw->y - priv->scroll_y < -delta) {
+	    while (oriented_y - priv->scroll_y < -delta) {
 		sd->up++;
 		priv->scroll_y -= delta;
 	    }
@@ -1775,11 +1834,11 @@ HandleScrolling(SynapticsPrivate *priv, struct SynapticsHwState *hw,
 	/* + = right, - = left */
 	int delta = para->scroll_dist_horiz;
 	if (delta > 0) {
-	    while (hw->x - priv->scroll_x > delta) {
+	    while (oriented_x - priv->scroll_x > delta) {
 		sd->right++;
 		priv->scroll_x += delta;
 	    }
-	    while (hw->x - priv->scroll_x < -delta) {
+	    while (oriented_x - priv->scroll_x < -delta) {
 		sd->left++;
 		priv->scroll_x -= delta;
 	    }
@@ -1868,6 +1927,46 @@ HandleClickWithFingers(SynapticsSHM *para, struct SynapticsHwState *hw)
             hw->right = 1;
             break;
     }
+}
+
+static edge_type
+HandleEdgeOrientation(int orientation, edge_type edge) {
+    int new_edge = 0;
+    if(edge & BOTTOM_EDGE) {
+      switch(orientation) {
+	  default:
+	  case 0:  new_edge |= BOTTOM_EDGE;	break;
+	  case 1:  new_edge |= LEFT_EDGE;	break;
+	  case 2:  new_edge |= TOP_EDGE;	break;
+	  case 3:  new_edge |= RIGHT_EDGE;	break;
+      }
+    } else if(edge & TOP_EDGE) {
+      switch(orientation) {
+	  default:
+	  case 0:  new_edge |= TOP_EDGE;	break;
+	  case 1:  new_edge |= RIGHT_EDGE;	break;
+	  case 2:  new_edge |= BOTTOM_EDGE;	break;
+	  case 3:  new_edge |= LEFT_EDGE;	break;
+      }
+    }
+    if(edge & LEFT_EDGE) {
+      switch(orientation) {
+	  default:
+	  case 0:  new_edge |= LEFT_EDGE;	break;
+	  case 1:  new_edge |= TOP_EDGE;	break;
+	  case 2:  new_edge |= RIGHT_EDGE;	break;
+	  case 3:  new_edge |= BOTTOM_EDGE;	break;
+      }
+    } else if(edge & RIGHT_EDGE) {
+      switch(orientation) {
+	  default:
+	  case 0:  new_edge |= RIGHT_EDGE;	break;
+	  case 1:  new_edge |= BOTTOM_EDGE;	break;
+	  case 2:  new_edge |= LEFT_EDGE;	break;
+	  case 3:  new_edge |= TOP_EDGE;	break;
+      }
+    }
+    return new_edge;
 }
 
 
@@ -1995,6 +2094,7 @@ HandleState(LocalDevicePtr local, struct SynapticsHwState *hw)
     }
 
     edge = edge_detection(priv, hw->x, hw->y);
+    edge = HandleEdgeOrientation(para->orientation, edge);
 
     finger = SynapticsDetectFinger(priv, hw);
 

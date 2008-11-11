@@ -384,6 +384,15 @@ reenabled.
 .
 This can be achieved by switching to a text console and then switching
 back to X.
+.TP
+.BI "Option \*qOrientation\*q \*q" integer \*q
+This option can be used to change the orientation of the trackpad and can
+takes values from 0 to 3. The default value 0 implies a normal orientation,
+other values can be used to have respectively an orientation set to the
+left, an inverted orientation, and an orientation set to the right.
+This may be useful in combinaison with the orientation option of the XRandR
+extension. You may notice that the values used are the same to the values
+used by XRandR.
 .
 .
 .LP
